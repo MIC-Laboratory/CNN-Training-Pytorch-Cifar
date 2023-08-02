@@ -39,7 +39,7 @@ git clone https://github.com/MIC-Laboratory/Pytorch-Cifar.git
  
 2. Navigate to the project directory:
 ```bash
-cd Pytorch-CNN-Cifar10-100
+cd Pytorch-Cifar
 ```
 
 3. Install the dependencies:
