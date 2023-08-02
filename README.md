@@ -25,7 +25,7 @@ This project provides a framework for training and evaluating CNN models on the 
 | Cifar100 | [Resnet101](https://arxiv.org/pdf/1512.03385)   | 42.697     | 83.41        | 200   |
 | Cifar10  | [MobilenetV2](https://arxiv.org/pdf/1801.04381) | 2.297      | 95.82        | 200   |
 | Cifar10  | [VGG16](https://arxiv.org/pdf/1409.1556)       | 33.647     | 95.26        | 200   |
-| Cifar10  | [Resnet101](https://arxiv.org/pdf/1512.03385)   | 42.513     | -            | 200   |
+| Cifar10  | [Resnet101](https://arxiv.org/pdf/1512.03385)   | 42.513     | -            | -   |
 
 <a id="Installation"></a>
 
