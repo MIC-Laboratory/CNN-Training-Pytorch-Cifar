@@ -1,6 +1,3 @@
-# Pytorch-Cifar
-This repository contains code for training and evaluating Convolutional Neural Networks (CNN) models using PyTorch on the CIFAR-10 and CIFAR-100 datasets.
-
 ## Table of Contents
 - [Introduction](#Introduction)
 - [Experiment Result](Experiment_Result)
