@@ -1,6 +1,6 @@
 ## Table of Contents
 - [Introduction](#Introduction)
-- [Experiment Result](Experiment_Result)
+- [Experiment Result](#Experiment_Result)
 - [Installation](#Installation)
 - [Usage](#Usage)
 - [Models](#Models)
