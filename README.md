@@ -82,6 +82,7 @@ These models are defined in separate Python files in the Models directory.
 ## Project Structure
 The structure of the project is as follows:
 
+```bash
 Pytorch-Cifar
 ├── config.yaml
 ├── LICENSE
@@ -94,7 +95,7 @@ Pytorch-Cifar
 ├── Training.py
 │── Weapon
 │   └── WarmUpLR.py
- 
+```
  
 - config.yaml: Configuration file containing hyperparameters and settings for training the models.
 - Training.py: Script for training and testing the CNN models using PyTorch.
