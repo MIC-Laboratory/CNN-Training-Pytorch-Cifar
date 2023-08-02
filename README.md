@@ -103,7 +103,7 @@ Pytorch-Cifar
     - Resnet.py: Contains code for the ResNet model.
     - Vgg.py: Contains code for the VGG model.
     - Mobilenetv2.py: Contains code for the MobileNetV2 model.
-Weapon directory: Contains code related to learning rate scheduling.
+- Weapon directory: Contains code related to learning rate scheduling.
     - WarmUpLR.py: Defines the WarmUpLR class for implementing learning rate warm-up.
 README.md: Documentation file providing an overview of the project and instructions for usage.
 This structure tree provides an overview of the organization of the project files.
