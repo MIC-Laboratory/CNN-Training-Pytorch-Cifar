@@ -73,7 +73,8 @@ This project includes the following pre-defined models:
 - [MobilenetV2](https://arxiv.org/pdf/1801.04381)
 
 These models are defined in separate Python files in the Models directory.
-
+### Pretrain Weight
+[Pretrained Weight for Cifar10 and Cifar100 download here](https://sfsu.box.com/s/92dkua8cekfc7ry0gtcn6v7ungmcnoq0)    
 <a id="Project_Structure"></a>
 
 ## Project Structure
