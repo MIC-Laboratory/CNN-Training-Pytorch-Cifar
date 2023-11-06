@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import os
+import sys
 import yaml
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
@@ -12,9 +13,10 @@ from Models.Mobilenetv2 import MobileNetV2
 from Models.Vgg import VGG
 from Weapon.WarmUpLR import WarmUpLR
 from torch.utils.tensorboard import SummaryWriter
-
+sys.path.append(os.path.join(os.getcwd()))
+from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3,OFAResNets
 # Read the configuration from the config.yaml file
-with open("config.yaml","r") as f:
+with open("CNN_Training_Pytorch_Cifar/config.yaml","r") as f:
     config = yaml.load(f,yaml.FullLoader)["Training_seting"]
 
 
@@ -54,7 +56,7 @@ train_transform = transforms.Compose(
     [
     transforms.RandomCrop(input_size,padding=4),
     transforms.RandomHorizontalFlip(),
-    transforms.autoaugment.TrivialAugmentWide(),
+    # transforms.autoaugment.TrivialAugmentWide(),
     transforms.ToTensor(),
     transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
     transforms.Normalize(mean=dataset_mean,std=dataset_std)
@@ -90,6 +92,15 @@ print("==> Preparing models")
 print(f"==> Using {device} mode")
 if config["models"] == "ResNet101":
     net = ResNet101(num_classes=classes)
+if config["models"] == "ResNet-OFA":
+    net = OFAResNets(
+        n_classes=classes,
+        bn_param=(0.1, 1e-5),
+        dropout_rate=0.1,
+        depth_list=4,
+        expand_ratio_list=6,
+        width_mult_list=1.0, 
+    )
 elif config["models"] == "Mobilenetv2":
     net = MobileNetV2(num_classes=classes)
 elif config["models"] == "VGG16":

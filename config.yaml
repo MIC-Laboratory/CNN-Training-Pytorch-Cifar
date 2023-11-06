@@ -1,5 +1,5 @@
 Training_seting:
-    models: ResNet101
+    models: ResNet-OFA
     training_epoch: 200
     batch_size: 128
     num_workers: 4
@@ -8,9 +8,9 @@ Training_seting:
     weight_decay: 5.e-4
     warmup_epoch: 10
     dataset: 
-        Cifar10 #Options Cifar10, Cifar100, Imagenet
+        Cifar100 #Options Cifar10, Cifar100, Imagenet
         # Cifar100
         # Imagenet
-    dataset_path: data/
+    dataset_path: Training_data
     experiment_data_path: Experiment_data/Training_Record/
     weight_path: Weights/
