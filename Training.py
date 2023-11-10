@@ -219,14 +219,15 @@ print(f"==> Using deepspeed mode")
 if config["models"] == "ResNet101":
     net = ResNet101(num_classes=classes)
 if config["models"] == "ResNet-OFA":
-    net = OFAResNets(
-        n_classes=classes,
-        bn_param=(0.1, 1e-5),
-        dropout_rate=0.1,
-        depth_list=4,
-        expand_ratio_list=6,
-        width_mult_list=1.0, 
-    )
+    with deepspeed.zero.Init(enabled=True):
+        net = OFAResNets(
+            n_classes=classes,
+            bn_param=(0.1, 1e-5),
+            dropout_rate=0.1,
+            depth_list=4,
+            expand_ratio_list=6,
+            width_mult_list=1.0, 
+        )
 elif config["models"] == "Mobilenetv2":
     net = MobileNetV2(num_classes=classes)
 elif config["models"] == "VGG16":
@@ -249,9 +250,13 @@ parameters = filter(lambda p: p.requires_grad, net.parameters())
 if args.moe_param_group:
     parameters = create_moe_param_groups(net)
 
+# Define the loss function and optimizer for training the model
+criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=training_epoch)
+
 
 model_engine, optimizer, train_loader, __ = deepspeed.initialize(
-    args=args, model=net, model_parameters=parameters, training_data=train_set, config=ds_config)
+    args=args, model=net, model_parameters=parameters, training_data=train_set, config=ds_config,lr_scheduler=torch.optim.lr_scheduler.CosineAnnealingLR)
 
 local_device = get_accelerator().device_name(model_engine.local_rank)
 local_rank = model_engine.local_rank
@@ -262,11 +267,6 @@ if model_engine.bfloat16_enabled():
     target_dtype=torch.bfloat16
 elif model_engine.fp16_enabled():
     target_dtype=torch.half
-
-# Define the loss function and optimizer for training the model
-criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=training_epoch)
-warmup_scheduler = WarmUpLR(optimizer, len(train_loader) * warmup_epoch)
 
 
 # Validation function
@@ -333,8 +333,7 @@ def train(epoch,network,dataloader):
             loss = criterion(outputs, labels)
             network.backward(loss)
             network.step()
-            if epoch <= warmup_epoch:
-                warmup_scheduler.step()
+            
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
@@ -351,8 +350,6 @@ print("==> Start training/testing")
 for epoch in range(training_epoch + warmup_epoch):
     train(epoch, network=model_engine,dataloader=train_loader)
     loss,accuracy = validation(network=net,file_name=filename,dataloader=test_loader)
-    if (epoch > warmup_epoch):
-        scheduler.step()
     writer.add_scalar('Test/Loss', loss, epoch)
     writer.add_scalar('Test/ACC', accuracy, epoch)
 writer.close()
