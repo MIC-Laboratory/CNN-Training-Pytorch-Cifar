@@ -252,7 +252,6 @@ if args.moe_param_group:
 
 # Define the loss function and optimizer for training the model
 criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=training_epoch)
 
 
 model_engine, optimizer, train_loader, __ = deepspeed.initialize(
