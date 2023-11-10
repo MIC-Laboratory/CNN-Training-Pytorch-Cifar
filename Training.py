@@ -224,7 +224,7 @@ if config["models"] == "ResNet-OFA":
         bn_param=(0.1, 1e-5),
         dropout_rate=0.1,
         depth_list=4,
-        expand_ratio_list=1,
+        expand_ratio_list=6,
         width_mult_list=1.0, 
     )
 elif config["models"] == "Mobilenetv2":
