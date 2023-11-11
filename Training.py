@@ -219,15 +219,14 @@ print(f"==> Using deepspeed mode")
 if config["models"] == "ResNet101":
     net = ResNet101(num_classes=classes)
 if config["models"] == "ResNet-OFA":
-    with deepspeed.zero.Init(enabled=True):
-        net = OFAResNets(
-            n_classes=classes,
-            bn_param=(0.1, 1e-5),
-            dropout_rate=0.1,
-            depth_list=4,
-            expand_ratio_list=6,
-            width_mult_list=1.0, 
-        )
+    net = OFAResNets(
+        n_classes=classes,
+        bn_param=(0.1, 1e-5),
+        dropout_rate=0.1,
+        depth_list=4,
+        expand_ratio_list=6,
+        width_mult_list=1.0, 
+    )
 elif config["models"] == "Mobilenetv2":
     net = MobileNetV2(num_classes=classes)
 elif config["models"] == "VGG16":

@@ -25,21 +25,14 @@
   },
   "wall_clock_breakdown": False,
   "zero_allow_untested_optimizer": true,
-  "zero_optimization": {
-        "stage": 3,
+  "zero_allow_untested_optimizer": true,
+      "zero_optimization": {
+        "stage": 2,
         "contiguous_gradients": true,
-        "stage3_max_live_parameters": 1.e+9,
-        "stage3_max_reuse_distance": 1.e+9,
-        "stage3_prefetch_bucket_size": 1.e+7,
-        "stage3_param_persistence_threshold": 1.e+5,
-        "reduce_bucket_size": 1.e+7,
-        "sub_group_size": 1.e+9,
-        "offload_optimizer": {
-            "device": "cpu"
-         },
-        "offload_param": {
-            "device": "cpu"
-       }
-   }
+        "overlap_comm": true,
+        "reduce_scatter": true,
+        "reduce_bucket_size": 5.e+8,
+        "allgather_bucket_size": 5.e+8
+    }
     
 }
