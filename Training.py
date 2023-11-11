@@ -254,7 +254,7 @@ criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
 
 model_engine, optimizer, train_loader, __ = deepspeed.initialize(
-    args=args, model=net, model_parameters=parameters, training_data=train_set, config=ds_config,lr_scheduler=torch.optim.lr_scheduler.CosineAnnealingLR)
+    args=args, model=net, model_parameters=parameters, training_data=train_set, config=ds_config)
 
 local_device = get_accelerator().device_name(model_engine.local_rank)
 local_rank = model_engine.local_rank
