@@ -279,8 +279,9 @@ def validation(network,dataloader,file_name,save=True):
     with tqdm(total=len(dataloader)) as pbar:
         with torch.no_grad():
             for i, data in enumerate(dataloader, 0):
-                inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = data[0].to(local_device), data[1].to(local_device)
+            if target_dtype != None:
+                inputs = inputs.to(target_dtype)
 
 
                 # Perform forward pass and calculate loss and accuracy
