@@ -13,4 +13,4 @@ Training_seting:
         # Imagenet
     dataset_path: Training_data
     experiment_data_path: Experiment_data/Training_Record/
-    weight_path: Weights/
+    weight_path: weights/

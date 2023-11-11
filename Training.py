@@ -223,8 +223,8 @@ if config["models"] == "ResNet-OFA":
         n_classes=classes,
         bn_param=(0.1, 1e-5),
         dropout_rate=0.1,
-        depth_list=4,
-        expand_ratio_list=6,
+        depth_list=1,
+        expand_ratio_list=1,
         width_mult_list=1.0, 
     )
 elif config["models"] == "Mobilenetv2":
@@ -280,8 +280,8 @@ def validation(network,dataloader,file_name,save=True):
         with torch.no_grad():
             for i, data in enumerate(dataloader, 0):
                 inputs, labels = data[0].to(local_device), data[1].to(local_device)
-            if target_dtype != None:
-                inputs = inputs.to(target_dtype)
+                if target_dtype != None:
+                    inputs = inputs.to(target_dtype)
 
 
                 # Perform forward pass and calculate loss and accuracy
@@ -299,7 +299,7 @@ def validation(network,dataloader,file_name,save=True):
             if not os.path.isdir(weight_path):
                 os.makedirs(weight_path)
             check_point_path = os.path.join(weight_path,"Checkpoint.pt")
-            torch.save({"state_dict":network.state_dict(),"optimizer":optimizer.state_dict()},check_point_path)    
+            torch.save({"state_dict":network.state_dict()},check_point_path)    
             if accuracy > best_acc:
                 best_acc = accuracy
                 if save:
