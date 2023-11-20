@@ -175,7 +175,7 @@ train_transform = transforms.Compose(
     [
     transforms.RandomCrop(input_size,padding=4),
     transforms.RandomHorizontalFlip(),
-    # transforms.autoaugment.TrivialAugmentWide(),
+    transforms.autoaugment.TrivialAugmentWide(),
     transforms.ToTensor(),
     transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
     transforms.Normalize(mean=dataset_mean,std=dataset_std)
