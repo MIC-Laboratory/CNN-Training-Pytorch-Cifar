@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import os
-import sys
 import yaml
-import argparse
-import deepspeed
+import sys
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 from tqdm import tqdm
@@ -14,130 +12,13 @@ from Models.Resnet import ResNet101
 from Models.Mobilenetv2 import MobileNetV2
 from Models.Vgg import VGG
 from Weapon.WarmUpLR import WarmUpLR
-
-from deepspeed.accelerator import get_accelerator
 from torch.utils.tensorboard import SummaryWriter
 sys.path.append(os.path.join(os.getcwd()))
 from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3,OFAResNets
 
-
-# argument for deepspeed
-def add_argument():
-
-    parser = argparse.ArgumentParser(description='CIFAR')
-
-    #data
-    # cuda
-    parser.add_argument('--with_cuda',
-                        default=False,
-                        action='store_true',
-                        help='use CPU in case there\'s no GPU support')
-    parser.add_argument('--use_ema',
-                        default=False,
-                        action='store_true',
-                        help='whether use exponential moving average')
-
-    # train
-    parser.add_argument('-b',
-                        '--batch_size',
-                        default=128,
-                        type=int,
-                        help='mini-batch size (default: 128)')
-    parser.add_argument('-e',
-                        '--epochs',
-                        default=200,
-                        type=int,
-                        help='number of total epochs (default: 200)')
-    parser.add_argument('--local_rank',
-                        type=int,
-                        default=-1,
-                        help='local rank passed from distributed launcher')
-
-    parser.add_argument('--log-interval',
-                        type=int,
-                        default=2000,
-                        help="output logging information at a given interval")
-
-    parser.add_argument('--moe',
-                        default=False,
-                        action='store_true',
-                        help='use deepspeed mixture of experts (moe)')
-
-    parser.add_argument('--ep-world-size',
-                        default=1,
-                        type=int,
-                        help='(moe) expert parallel world size')
-    parser.add_argument('--num-experts',
-                        type=int,
-                        nargs='+',
-                        default=[
-                            1,
-                        ],
-                        help='number of experts list, MoE related.')
-    parser.add_argument(
-        '--mlp-type',
-        type=str,
-        default='standard',
-        help=
-        'Only applicable when num-experts > 1, accepts [standard, residual]')
-    parser.add_argument('--top-k',
-                        default=1,
-                        type=int,
-                        help='(moe) gating top 1 and 2 supported')
-    parser.add_argument(
-        '--min-capacity',
-        default=0,
-        type=int,
-        help=
-        '(moe) minimum capacity of an expert regardless of the capacity_factor'
-    )
-    parser.add_argument(
-        '--noisy-gate-policy',
-        default=None,
-        type=str,
-        help=
-        '(moe) noisy gating (only supported with top-1). Valid values are None, RSample, and Jitter'
-    )
-    parser.add_argument(
-        '--moe-param-group',
-        default=False,
-        action='store_true',
-        help=
-        '(moe) create separate moe param groups, required when using ZeRO w. MoE'
-    )
-    parser.add_argument(
-        '--dtype',
-        default='fp32',
-        type=str,
-        choices=['bf16', 'fp16', 'fp32'],
-        help=
-        'Datatype used for training'
-    )
-    parser.add_argument(
-        '--stage',
-        default=0,
-        type=int,
-        choices=[0, 1, 2, 3],
-        help=
-        'Datatype used for training'
-    )
-
-    # Include DeepSpeed configuration arguments
-    parser = deepspeed.add_config_arguments(parser)
-
-    args = parser.parse_args()
-
-    return args
-
-# Init deepspeed
-deepspeed.init_distributed()
-
 # Read the configuration from the config.yaml file
 with open("CNN_Training_Pytorch_Cifar/config.yaml","r") as f:
     config = yaml.load(f,yaml.FullLoader)["Training_seting"]
-# Read deepspeed config
-with open("CNN_Training_Pytorch_Cifar/ds_config.yaml","r") as f:
-    ds_config = yaml.load(f,yaml.FullLoader)
 
 
 # Read the configuration from the config.yaml file
@@ -159,7 +40,8 @@ elif config["dataset"] == "Cifar100":
     dataset_std = [0.2675, 0.2565, 0.2761]
     input_size = 32
 
-
+# Check if GPU is available, otherwise use CPU
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 # Set the paths for dataset, weights, models, and log data
@@ -186,85 +68,54 @@ test_transform = transforms.Compose([
     transforms.Normalize(mean=dataset_mean,std=dataset_std)
 ])
 
-if torch.distributed.get_rank() != 0:
-    # might be downloading cifar data, let rank 0 download first
-    torch.distributed.barrier()
 
 # Load the dataset based on the chosen dataset (Cifar10, Cifar100, or Imagenet) and apply the defined transformations
 print("==> Preparing data")
 if config["dataset"] == "Cifar10":
     train_set = torchvision.datasets.CIFAR10(dataset_path,train=True,transform=train_transform,download=True)
-    if torch.distributed.get_rank() == 0:
-        # cifar data is downloaded, indicate other ranks can proceed
-        torch.distributed.barrier()
     test_set = torchvision.datasets.CIFAR10(dataset_path,train=False,transform=test_transform,download=True)
 elif config["dataset"] == "Cifar100":
     train_set = torchvision.datasets.CIFAR100(dataset_path,train=True,transform=train_transform,download=True)
-    if torch.distributed.get_rank() == 0:
-        # cifar data is downloaded, indicate other ranks can proceed
-        torch.distributed.barrier()
     test_set = torchvision.datasets.CIFAR100(dataset_path,train=False,transform=test_transform,download=True)
 
 # Get the number of classes in the dataset
 classes = len(train_set.classes)
 
 
-# Create data loaders for testing
+# Create data loaders for training and testing
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+                                          shuffle=True, num_workers=num_workers)
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
                                          shuffle=False, num_workers=num_workers)
 
 # Create an instance of the selected model (ResNet101, MobileNetV2, or VGG) and transfer it to the chosen device
 print("==> Preparing models")
-print(f"==> Using deepspeed mode")
-if config["models"] == "ResNet101":
-    net = ResNet101(num_classes=classes)
+print(f"==> Using {device} mode")
 if config["models"] == "ResNet-OFA":
     net = OFAResNets(
         n_classes=classes,
         bn_param=(0.1, 1e-5),
         dropout_rate=0.1,
         depth_list=1,
-        expand_ratio_list=1,
+        expand_ratio_list=4,
         width_mult_list=1.0, 
     )
+    net.load_state_dict(torch.load("weights/Cifar100/ResNet-OFA/ResNet101OFA_ACC@79.89.pt")["state_dict"])
+elif config["models"] == "ResNet101":
+    net = ResNet101(num_classes=classes)
 elif config["models"] == "Mobilenetv2":
     net = MobileNetV2(num_classes=classes)
 elif config["models"] == "VGG16":
     net = VGG(num_class=classes)
-
-args = add_argument()
-
-def create_moe_param_groups(model):
-    from deepspeed.moe.utils import split_params_into_different_moe_groups_for_optimizer
-
-    parameters = {
-        'params': [p for p in model.parameters()],
-        'name': 'parameters'
-    }
-
-    return split_params_into_different_moe_groups_for_optimizer(parameters)
+net.to(device)
 
 
-parameters = filter(lambda p: p.requires_grad, net.parameters())
-if args.moe_param_group:
-    parameters = create_moe_param_groups(net)
 
 # Define the loss function and optimizer for training the model
 criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-
-
-model_engine, optimizer, train_loader, __ = deepspeed.initialize(
-    args=args, model=net, model_parameters=parameters, training_data=train_set, config=ds_config)
-
-local_device = get_accelerator().device_name(model_engine.local_rank)
-local_rank = model_engine.local_rank
-
-# For float32, target_dtype will be None so no datatype conversion needed
-target_dtype = None
-if model_engine.bfloat16_enabled():
-    target_dtype=torch.bfloat16
-elif model_engine.fp16_enabled():
-    target_dtype=torch.half
+optimizer = optim.SGD(net.parameters(), lr=lr_rate,momentum=config["momentum"],weight_decay=config["weight_decay"])
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=training_epoch)
+warmup_scheduler = WarmUpLR(optimizer, len(train_loader) * warmup_epoch)
 
 
 # Validation function
@@ -279,9 +130,8 @@ def validation(network,dataloader,file_name,save=True):
     with tqdm(total=len(dataloader)) as pbar:
         with torch.no_grad():
             for i, data in enumerate(dataloader, 0):
-                inputs, labels = data[0].to(local_device), data[1].to(local_device)
-                if target_dtype != None:
-                    inputs = inputs.to(target_dtype)
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
 
 
                 # Perform forward pass and calculate loss and accuracy
@@ -299,7 +149,7 @@ def validation(network,dataloader,file_name,save=True):
             if not os.path.isdir(weight_path):
                 os.makedirs(weight_path)
             check_point_path = os.path.join(weight_path,"Checkpoint.pt")
-            torch.save({"state_dict":network.state_dict()},check_point_path)    
+            torch.save({"state_dict":network.state_dict(),"optimizer":optimizer.state_dict()},check_point_path)    
             if accuracy > best_acc:
                 best_acc = accuracy
                 if save:
@@ -312,7 +162,7 @@ def validation(network,dataloader,file_name,save=True):
 
 
 # Training function
-def train(epoch,network,dataloader):
+def train(epoch,network,optimizer,dataloader):
     # loop over the dataset multiple times
     running_loss = 0.0
     total = 0
@@ -322,17 +172,19 @@ def train(epoch,network,dataloader):
         # Iterate over the data loader
         for i, data in enumerate(dataloader, 0):
             
-            inputs, labels = data[0].to(local_device), data[1].to(local_device)
-            if target_dtype != None:
-                inputs = inputs.to(target_dtype)
+            inputs, labels = data
+            inputs, labels = inputs.to(device), labels.to(device)
 
+            # zero the parameter gradients
+            optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs = network(inputs)
             loss = criterion(outputs, labels)
-            network.backward(loss)
-            network.step()
-            
+            loss.backward()
+            optimizer.step()
+            if epoch <= warmup_epoch:
+                warmup_scheduler.step()
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
@@ -347,8 +199,10 @@ def train(epoch,network,dataloader):
 # Training and Testing Loop
 print("==> Start training/testing")
 for epoch in range(training_epoch + warmup_epoch):
-    train(epoch, network=model_engine,dataloader=train_loader)
+    # train(epoch, network=net, optimizer=optimizer,dataloader=train_loader)
     loss,accuracy = validation(network=net,file_name=filename,dataloader=test_loader)
+    if (epoch > warmup_epoch):
+        scheduler.step()
     writer.add_scalar('Test/Loss', loss, epoch)
     writer.add_scalar('Test/ACC', accuracy, epoch)
 writer.close()
