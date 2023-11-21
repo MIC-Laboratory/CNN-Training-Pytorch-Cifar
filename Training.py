@@ -97,10 +97,14 @@ if config["models"] == "ResNet-OFA":
         bn_param=(0.1, 1e-5),
         dropout_rate=0.1,
         depth_list=1,
-        expand_ratio_list=4,
+        expand_ratio_list=1,
         width_mult_list=1.0, 
     )
-    net.load_state_dict(torch.load("weights/Cifar100/ResNet-OFA/ResNet101OFA_ACC@79.89.pt")["state_dict"])
+    # net.load_state_dict(torch.load("weights/Cifar100/ResNet-OFA/ResNet101OFA_ACC@79.89.pt")["state_dict"])
+    net.load_state_dict(torch.load("exp_KMean/kernel_depth2kernel_depth_width/phase2/checkpoint/model_best.pth.tar")["state_dict"])
+    net.set_active_subnet(e=0.7)
+    # net.sample_active_subnet()
+    net = net.get_active_subnet(preserve_weight=True)
 elif config["models"] == "ResNet101":
     net = ResNet101(num_classes=classes)
 elif config["models"] == "Mobilenetv2":
