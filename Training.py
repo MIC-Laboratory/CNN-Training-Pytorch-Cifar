@@ -15,6 +15,7 @@ from Weapon.WarmUpLR import WarmUpLR
 from torch.utils.tensorboard import SummaryWriter
 sys.path.append(os.path.join(os.getcwd()))
 from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3,OFAResNets
+from ofa.imagenet_classification.run_manager import DistributedImageNetRunConfig,DistributedCifar100RunConfig
 
 # Read the configuration from the config.yaml file
 with open("CNN_Training_Pytorch_Cifar/config.yaml","r") as f:
@@ -96,13 +97,13 @@ if config["models"] == "ResNet-OFA":
         n_classes=classes,
         bn_param=(0.1, 1e-5),
         dropout_rate=0.1,
-        depth_list=1,
-        expand_ratio_list=1,
+        depth_list=[1],
+        expand_ratio_list=[0.6,1.0],
         width_mult_list=1.0, 
     )
     # net.load_state_dict(torch.load("weights/Cifar100/ResNet-OFA/ResNet101OFA_ACC@79.89.pt")["state_dict"])
-    net.load_state_dict(torch.load("exp_KMean/kernel_depth2kernel_depth_width/phase2/checkpoint/model_best.pth.tar")["state_dict"])
-    net.set_active_subnet(e=0.7)
+    net.load_state_dict(torch.load("weights/full_model.pt"))
+    net.set_active_subnet(d=1, e=0.5, w=0,ks=3)
     # net.sample_active_subnet()
     net = net.get_active_subnet(preserve_weight=True)
 elif config["models"] == "ResNet101":
@@ -126,11 +127,11 @@ warmup_scheduler = WarmUpLR(optimizer, len(train_loader) * warmup_epoch)
 def validation(network,dataloader,file_name,save=True):
     # Iterate over the data loader
     global best_acc
-    accuracy = 0
     running_loss = 0.0
-    total = 0
-    correct = 0
+    running_corrects = 0.0
     network.eval()
+    topk = 1
+    total_samples = 0
     with tqdm(total=len(dataloader)) as pbar:
         with torch.no_grad():
             for i, data in enumerate(dataloader, 0):
@@ -141,13 +142,16 @@ def validation(network,dataloader,file_name,save=True):
                 # Perform forward pass and calculate loss and accuracy
                 outputs = network(inputs)
                 loss = criterion(outputs, labels)
-                _, predicted = torch.max(outputs, 1)
                 running_loss += loss.item()
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-                accuracy = 100 * correct / total
+                _, pred = outputs.topk(topk, 1, True, True)
+                pred = pred.t()
+                correct = pred.eq(labels.view(1, -1).expand_as(pred))
+                correct_k = correct[:topk].reshape(-1).float().sum(0, keepdim=True)
+                running_corrects += correct_k.item()
+                total_samples += labels.size(0)
+                accuracy = (running_corrects / total_samples) * 100
                 pbar.update()
-                pbar.set_description_str("Acc: {:.3f} {}/{} | Loss: {:.3f}".format(accuracy,correct,total,running_loss/(i+1)))
+                pbar.set_description_str("Acc: {:.3f} | Loss: {:.3f}".format(accuracy,running_loss/(i+1)))
             
             # Save the model's checkpoint if accuracy improved
             if not os.path.isdir(weight_path):
