@@ -14,7 +14,7 @@ from Models.Vgg import VGG
 from Weapon.WarmUpLR import WarmUpLR
 from torch.utils.tensorboard import SummaryWriter
 sys.path.append(os.path.join(os.getcwd()))
-from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3,OFAResNets
+from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3,OFAResNets,OFAMobileNetV2
 from ofa.imagenet_classification.run_manager import DistributedImageNetRunConfig,DistributedCifar100RunConfig
 
 # Read the configuration from the config.yaml file
@@ -106,6 +106,20 @@ if config["models"] == "ResNet-OFA":
     net.set_active_subnet(d=1, e=0.5, w=0,ks=3)
     # net.sample_active_subnet()
     net = net.get_active_subnet(preserve_weight=True)
+elif config["models"] == "MB2-OFA":
+    net = OFAMobileNetV2(
+        num_classes=classes,
+        bn_param=(0.1, 1e-5),
+        dropout_rate=0.1,
+        depth_list=[1],
+        expand_ratio_list=[0.6,1.0],
+        width_mult_list=1.0, 
+    )
+    # net.load_state_dict(torch.load("weights/Cifar100/ResNet-OFA/ResNet101OFA_ACC@79.89.pt")["state_dict"])
+    net.load_state_dict(torch.load("weights/MobilenetV2OFA_ACC@79.32.pt")["state_dict"])
+    net.set_active_subnet(d=1, e=0.9, w=0,ks=3)
+    # net.sample_active_subnet()
+    # net = net.get_active_subnet(preserve_weight=True)
 elif config["models"] == "ResNet101":
     net = ResNet101(num_classes=classes)
 elif config["models"] == "Mobilenetv2":
