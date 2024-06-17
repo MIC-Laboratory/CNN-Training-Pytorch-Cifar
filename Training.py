@@ -10,6 +10,7 @@ from tqdm import tqdm
 from Models.Resnet import ResNet101
 from Models.Mobilenetv2 import MobileNetV2
 from Models.Vgg import VGG
+from Models.Mobilenetv3 import MobileNetV3
 from Weapon.WarmUpLR import WarmUpLR
 from torch.utils.tensorboard import SummaryWriter
 
@@ -54,7 +55,7 @@ train_transform = transforms.Compose(
     [
     transforms.RandomCrop(input_size,padding=4),
     transforms.RandomHorizontalFlip(),
-    transforms.autoaugment.TrivialAugmentWide(),
+    # transforms.autoaugment.TrivialAugmentWide(),
     transforms.ToTensor(),
     transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
     transforms.Normalize(mean=dataset_mean,std=dataset_std)
@@ -94,6 +95,8 @@ elif config["models"] == "Mobilenetv2":
     net = MobileNetV2(num_classes=classes)
 elif config["models"] == "VGG16":
     net = VGG(num_class=classes)
+elif config["models"] == "Mobilenetv3":
+    net = MobileNetV3(mode='small', classes_num=classes, input_size=32, width_multiplier=width_multiplier)
 net.to(device)
 
 
